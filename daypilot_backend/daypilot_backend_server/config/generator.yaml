@@ -1,0 +1,5 @@
+type: server
+
+client:
+  dart:
+    path: ../daypilot_backend_client

@@ -1,0 +1,16 @@
+emailIdp:
+  - login:
+  - startRegistration:
+  - verifyRegistrationCode:
+  - finishRegistration:
+  - startPasswordReset:
+  - verifyPasswordResetCode:
+  - finishPasswordReset:
+jwtRefresh:
+  - refreshAccessToken:
+plan:
+  - generatePlan:
+greeting:
+  - hello:
+ping:
+  - ping:

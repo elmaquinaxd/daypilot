@@ -1,0 +1,5 @@
+class: PlanResponse
+fields:
+  focusPlan: List<PlanItem>
+  chillPlan: List<PlanItem>
+  note: String

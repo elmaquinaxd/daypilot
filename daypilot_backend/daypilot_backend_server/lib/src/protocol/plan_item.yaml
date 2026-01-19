@@ -1,0 +1,5 @@
+class: PlanItem
+fields:
+  start: String
+  end: String
+  title: String

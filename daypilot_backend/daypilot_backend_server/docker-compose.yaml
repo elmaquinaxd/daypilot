@@ -1,0 +1,44 @@
+services:
+  # Development services
+  postgres:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "8090:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: daypilot_backend
+      POSTGRES_PASSWORD: "9Rd84komhoGPg2gBA5jrgU13quxIxp4V"
+    volumes:
+      - daypilot_backend_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:6.2.6
+    ports:
+      - "8091:6379"
+    command: redis-server --requirepass "6HYHgz-IKg0uFxeRVCIgMt4ojbbd97U2"
+    environment:
+      - REDIS_REPLICATION_MODE=master
+
+  # Test services
+  postgres_test:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "9090:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: daypilot_backend_test
+      POSTGRES_PASSWORD: "zItOn-rIkf-LCW82IeTPv8EgMaphtDSS"
+    volumes:
+      - daypilot_backend_test_data:/var/lib/postgresql/data
+
+  redis_test:
+    image: redis:6.2.6
+    ports:
+      - "9091:6379"
+    command: redis-server --requirepass "7i1Pcli7vCYPywlmPS_uqZyace_dEhUw"
+    environment:
+      - REDIS_REPLICATION_MODE=master
+
+volumes:
+  daypilot_backend_data:
+  daypilot_backend_test_data:
