@@ -8,6 +8,8 @@ emailIdp:
   - finishPasswordReset:
 jwtRefresh:
   - refreshAccessToken:
+meal:
+  - generateMealSuggestions:
 plan:
   - generatePlan:
 greeting:

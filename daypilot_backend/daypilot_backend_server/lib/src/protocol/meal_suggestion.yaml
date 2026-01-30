@@ -1,0 +1,6 @@
+class: MealSuggestion
+fields:
+  label: String
+  title: String
+  desc: String
+  ingredients: List<String>

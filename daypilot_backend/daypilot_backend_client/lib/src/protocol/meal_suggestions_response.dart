@@ -11,46 +11,48 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'package:serverpod_client/serverpod_client.dart' as _i1;
-import 'plan_item.dart' as _i2;
+import 'meal_suggestion.dart' as _i2;
 import 'package:daypilot_backend_client/src/protocol/protocol.dart' as _i3;
 
-abstract class PlanResponse implements _i1.SerializableModel {
-  PlanResponse._({
+abstract class MealSuggestionsResponse implements _i1.SerializableModel {
+  MealSuggestionsResponse._({
     required this.note,
-    required this.plan,
+    required this.items,
   });
 
-  factory PlanResponse({
+  factory MealSuggestionsResponse({
     required String note,
-    required List<_i2.PlanItem> plan,
-  }) = _PlanResponseImpl;
+    required List<_i2.MealSuggestion> items,
+  }) = _MealSuggestionsResponseImpl;
 
-  factory PlanResponse.fromJson(Map<String, dynamic> jsonSerialization) {
-    return PlanResponse(
+  factory MealSuggestionsResponse.fromJson(
+    Map<String, dynamic> jsonSerialization,
+  ) {
+    return MealSuggestionsResponse(
       note: jsonSerialization['note'] as String,
-      plan: _i3.Protocol().deserialize<List<_i2.PlanItem>>(
-        jsonSerialization['plan'],
+      items: _i3.Protocol().deserialize<List<_i2.MealSuggestion>>(
+        jsonSerialization['items'],
       ),
     );
   }
 
   String note;
 
-  List<_i2.PlanItem> plan;
+  List<_i2.MealSuggestion> items;
 
-  /// Returns a shallow copy of this [PlanResponse]
+  /// Returns a shallow copy of this [MealSuggestionsResponse]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
-  PlanResponse copyWith({
+  MealSuggestionsResponse copyWith({
     String? note,
-    List<_i2.PlanItem>? plan,
+    List<_i2.MealSuggestion>? items,
   });
   @override
   Map<String, dynamic> toJson() {
     return {
-      '__className__': 'PlanResponse',
+      '__className__': 'MealSuggestionsResponse',
       'note': note,
-      'plan': plan.toJson(valueToJson: (v) => v.toJson()),
+      'items': items.toJson(valueToJson: (v) => v.toJson()),
     };
   }
 
@@ -60,26 +62,26 @@ abstract class PlanResponse implements _i1.SerializableModel {
   }
 }
 
-class _PlanResponseImpl extends PlanResponse {
-  _PlanResponseImpl({
+class _MealSuggestionsResponseImpl extends MealSuggestionsResponse {
+  _MealSuggestionsResponseImpl({
     required String note,
-    required List<_i2.PlanItem> plan,
+    required List<_i2.MealSuggestion> items,
   }) : super._(
          note: note,
-         plan: plan,
+         items: items,
        );
 
-  /// Returns a shallow copy of this [PlanResponse]
+  /// Returns a shallow copy of this [MealSuggestionsResponse]
   /// with some or all fields replaced by the given arguments.
   @_i1.useResult
   @override
-  PlanResponse copyWith({
+  MealSuggestionsResponse copyWith({
     String? note,
-    List<_i2.PlanItem>? plan,
+    List<_i2.MealSuggestion>? items,
   }) {
-    return PlanResponse(
+    return MealSuggestionsResponse(
       note: note ?? this.note,
-      plan: plan ?? this.plan.map((e0) => e0.copyWith()).toList(),
+      items: items ?? this.items.map((e0) => e0.copyWith()).toList(),
     );
   }
 }

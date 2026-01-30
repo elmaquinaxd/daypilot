@@ -1,18 +1,26 @@
-# Dart / Flutter
+# Flutter / Dart
 .dart_tool/
-.packages
-.pub/
 build/
+.pub-cache/
+.pub/
+.packages
 
-# Serverpod
-.generated/
-passwords.yaml
-*.env
+# IDE
+.vscode/
+.idea/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# IDE
-.vscode/
-.idea/
+# Env / secrets
+.env
+.env.*
+*.key
+*.log
+
+# Serverpod / Generated
+.serverpod/
+
+# lib/src/generated/
+# lib/src/protocol/

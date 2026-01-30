@@ -16,10 +16,12 @@ import 'package:serverpod_client/serverpod_client.dart' as _i2;
 import 'dart:async' as _i3;
 import 'package:serverpod_auth_core_client/serverpod_auth_core_client.dart'
     as _i4;
-import 'package:daypilot_backend_client/src/protocol/plan_response.dart' as _i5;
+import 'package:daypilot_backend_client/src/protocol/meal_suggestions_response.dart'
+    as _i5;
+import 'package:daypilot_backend_client/src/protocol/plan_response.dart' as _i6;
 import 'package:daypilot_backend_client/src/protocol/greetings/greeting.dart'
-    as _i6;
-import 'protocol.dart' as _i7;
+    as _i7;
+import 'protocol.dart' as _i8;
 
 /// By extending [EmailIdpBaseEndpoint], the email identity provider endpoints
 /// are made available on the server and enable the corresponding sign-in widget
@@ -236,14 +238,36 @@ class EndpointJwtRefresh extends _i4.EndpointRefreshJwtTokens {
 }
 
 /// {@category Endpoint}
+class EndpointMeal extends _i2.EndpointRef {
+  EndpointMeal(_i2.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'meal';
+
+  _i3.Future<_i5.MealSuggestionsResponse> generateMealSuggestions(
+    String tasks,
+    String prefs,
+    int minutes,
+  ) => caller.callServerEndpoint<_i5.MealSuggestionsResponse>(
+    'meal',
+    'generateMealSuggestions',
+    {
+      'tasks': tasks,
+      'prefs': prefs,
+      'minutes': minutes,
+    },
+  );
+}
+
+/// {@category Endpoint}
 class EndpointPlan extends _i2.EndpointRef {
   EndpointPlan(_i2.EndpointCaller caller) : super(caller);
 
   @override
   String get name => 'plan';
 
-  _i3.Future<_i5.PlanResponse> generatePlan(String rawTasks) =>
-      caller.callServerEndpoint<_i5.PlanResponse>(
+  _i3.Future<_i6.PlanResponse> generatePlan(String rawTasks) =>
+      caller.callServerEndpoint<_i6.PlanResponse>(
         'plan',
         'generatePlan',
         {'rawTasks': rawTasks},
@@ -260,8 +284,8 @@ class EndpointGreeting extends _i2.EndpointRef {
   String get name => 'greeting';
 
   /// Returns a personalized greeting message: "Hello {name}".
-  _i3.Future<_i6.Greeting> hello(String name) =>
-      caller.callServerEndpoint<_i6.Greeting>(
+  _i3.Future<_i7.Greeting> hello(String name) =>
+      caller.callServerEndpoint<_i7.Greeting>(
         'greeting',
         'hello',
         {'name': name},
@@ -313,7 +337,7 @@ class Client extends _i2.ServerpodClientShared {
     bool? disconnectStreamsOnLostInternetConnection,
   }) : super(
          host,
-         _i7.Protocol(),
+         _i8.Protocol(),
          securityContext: securityContext,
          streamingConnectionTimeout: streamingConnectionTimeout,
          connectionTimeout: connectionTimeout,
@@ -324,6 +348,7 @@ class Client extends _i2.ServerpodClientShared {
        ) {
     emailIdp = EndpointEmailIdp(this);
     jwtRefresh = EndpointJwtRefresh(this);
+    meal = EndpointMeal(this);
     plan = EndpointPlan(this);
     greeting = EndpointGreeting(this);
     ping = EndpointPing(this);
@@ -333,6 +358,8 @@ class Client extends _i2.ServerpodClientShared {
   late final EndpointEmailIdp emailIdp;
 
   late final EndpointJwtRefresh jwtRefresh;
+
+  late final EndpointMeal meal;
 
   late final EndpointPlan plan;
 
@@ -346,6 +373,7 @@ class Client extends _i2.ServerpodClientShared {
   Map<String, _i2.EndpointRef> get endpointRefLookup => {
     'emailIdp': emailIdp,
     'jwtRefresh': jwtRefresh,
+    'meal': meal,
     'plan': plan,
     'greeting': greeting,
     'ping': ping,

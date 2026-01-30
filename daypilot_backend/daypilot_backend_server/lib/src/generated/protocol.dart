@@ -17,9 +17,13 @@ import 'package:serverpod_auth_idp_server/serverpod_auth_idp_server.dart'
 import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
     as _i4;
 import 'greetings/greeting.dart' as _i5;
-import 'plan_item.dart' as _i6;
-import 'plan_response.dart' as _i7;
+import 'meal_suggestion.dart' as _i6;
+import 'meal_suggestions_response.dart' as _i7;
+import 'plan_item.dart' as _i8;
+import 'plan_response.dart' as _i9;
 export 'greetings/greeting.dart';
+export 'meal_suggestion.dart';
+export 'meal_suggestions_response.dart';
 export 'plan_item.dart';
 export 'plan_response.dart';
 
@@ -66,23 +70,45 @@ class Protocol extends _i1.SerializationManagerServer {
     if (t == _i5.Greeting) {
       return _i5.Greeting.fromJson(data) as T;
     }
-    if (t == _i6.PlanItem) {
-      return _i6.PlanItem.fromJson(data) as T;
+    if (t == _i6.MealSuggestion) {
+      return _i6.MealSuggestion.fromJson(data) as T;
     }
-    if (t == _i7.PlanResponse) {
-      return _i7.PlanResponse.fromJson(data) as T;
+    if (t == _i7.MealSuggestionsResponse) {
+      return _i7.MealSuggestionsResponse.fromJson(data) as T;
+    }
+    if (t == _i8.PlanItem) {
+      return _i8.PlanItem.fromJson(data) as T;
+    }
+    if (t == _i9.PlanResponse) {
+      return _i9.PlanResponse.fromJson(data) as T;
     }
     if (t == _i1.getType<_i5.Greeting?>()) {
       return (data != null ? _i5.Greeting.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i6.PlanItem?>()) {
-      return (data != null ? _i6.PlanItem.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i6.MealSuggestion?>()) {
+      return (data != null ? _i6.MealSuggestion.fromJson(data) : null) as T;
     }
-    if (t == _i1.getType<_i7.PlanResponse?>()) {
-      return (data != null ? _i7.PlanResponse.fromJson(data) : null) as T;
+    if (t == _i1.getType<_i7.MealSuggestionsResponse?>()) {
+      return (data != null ? _i7.MealSuggestionsResponse.fromJson(data) : null)
+          as T;
     }
-    if (t == List<_i6.PlanItem>) {
-      return (data as List).map((e) => deserialize<_i6.PlanItem>(e)).toList()
+    if (t == _i1.getType<_i8.PlanItem?>()) {
+      return (data != null ? _i8.PlanItem.fromJson(data) : null) as T;
+    }
+    if (t == _i1.getType<_i9.PlanResponse?>()) {
+      return (data != null ? _i9.PlanResponse.fromJson(data) : null) as T;
+    }
+    if (t == List<String>) {
+      return (data as List).map((e) => deserialize<String>(e)).toList() as T;
+    }
+    if (t == List<_i6.MealSuggestion>) {
+      return (data as List)
+              .map((e) => deserialize<_i6.MealSuggestion>(e))
+              .toList()
+          as T;
+    }
+    if (t == List<_i8.PlanItem>) {
+      return (data as List).map((e) => deserialize<_i8.PlanItem>(e)).toList()
           as T;
     }
     try {
@@ -100,8 +126,10 @@ class Protocol extends _i1.SerializationManagerServer {
   static String? getClassNameForType(Type type) {
     return switch (type) {
       _i5.Greeting => 'Greeting',
-      _i6.PlanItem => 'PlanItem',
-      _i7.PlanResponse => 'PlanResponse',
+      _i6.MealSuggestion => 'MealSuggestion',
+      _i7.MealSuggestionsResponse => 'MealSuggestionsResponse',
+      _i8.PlanItem => 'PlanItem',
+      _i9.PlanResponse => 'PlanResponse',
       _ => null,
     };
   }
@@ -121,9 +149,13 @@ class Protocol extends _i1.SerializationManagerServer {
     switch (data) {
       case _i5.Greeting():
         return 'Greeting';
-      case _i6.PlanItem():
+      case _i6.MealSuggestion():
+        return 'MealSuggestion';
+      case _i7.MealSuggestionsResponse():
+        return 'MealSuggestionsResponse';
+      case _i8.PlanItem():
         return 'PlanItem';
-      case _i7.PlanResponse():
+      case _i9.PlanResponse():
         return 'PlanResponse';
     }
     className = _i2.Protocol().getClassNameForObject(data);
@@ -150,11 +182,17 @@ class Protocol extends _i1.SerializationManagerServer {
     if (dataClassName == 'Greeting') {
       return deserialize<_i5.Greeting>(data['data']);
     }
+    if (dataClassName == 'MealSuggestion') {
+      return deserialize<_i6.MealSuggestion>(data['data']);
+    }
+    if (dataClassName == 'MealSuggestionsResponse') {
+      return deserialize<_i7.MealSuggestionsResponse>(data['data']);
+    }
     if (dataClassName == 'PlanItem') {
-      return deserialize<_i6.PlanItem>(data['data']);
+      return deserialize<_i8.PlanItem>(data['data']);
     }
     if (dataClassName == 'PlanResponse') {
-      return deserialize<_i7.PlanResponse>(data['data']);
+      return deserialize<_i9.PlanResponse>(data['data']);
     }
     if (dataClassName.startsWith('serverpod.')) {
       data['className'] = dataClassName.substring(10);

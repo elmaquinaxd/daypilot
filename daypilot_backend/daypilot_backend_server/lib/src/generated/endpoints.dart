@@ -13,13 +13,14 @@
 import 'package:serverpod/serverpod.dart' as _i1;
 import '../auth/email_idp_endpoint.dart' as _i2;
 import '../auth/jwt_refresh_endpoint.dart' as _i3;
-import '../endpoints/plan_endpoint.dart' as _i4;
-import '../greetings/greeting_endpoint.dart' as _i5;
-import '../ping/ping_endpoint.dart' as _i6;
+import '../endpoints/meal_endpoint.dart' as _i4;
+import '../endpoints/plan_endpoint.dart' as _i5;
+import '../greetings/greeting_endpoint.dart' as _i6;
+import '../ping/ping_endpoint.dart' as _i7;
 import 'package:serverpod_auth_idp_server/serverpod_auth_idp_server.dart'
-    as _i7;
-import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
     as _i8;
+import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
+    as _i9;
 
 class Endpoints extends _i1.EndpointDispatch {
   @override
@@ -37,19 +38,25 @@ class Endpoints extends _i1.EndpointDispatch {
           'jwtRefresh',
           null,
         ),
-      'plan': _i4.PlanEndpoint()
+      'meal': _i4.MealEndpoint()
+        ..initialize(
+          server,
+          'meal',
+          null,
+        ),
+      'plan': _i5.PlanEndpoint()
         ..initialize(
           server,
           'plan',
           null,
         ),
-      'greeting': _i5.GreetingEndpoint()
+      'greeting': _i6.GreetingEndpoint()
         ..initialize(
           server,
           'greeting',
           null,
         ),
-      'ping': _i6.PingEndpoint()
+      'ping': _i7.PingEndpoint()
         ..initialize(
           server,
           'ping',
@@ -250,6 +257,43 @@ class Endpoints extends _i1.EndpointDispatch {
         ),
       },
     );
+    connectors['meal'] = _i1.EndpointConnector(
+      name: 'meal',
+      endpoint: endpoints['meal']!,
+      methodConnectors: {
+        'generateMealSuggestions': _i1.MethodConnector(
+          name: 'generateMealSuggestions',
+          params: {
+            'tasks': _i1.ParameterDescription(
+              name: 'tasks',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'prefs': _i1.ParameterDescription(
+              name: 'prefs',
+              type: _i1.getType<String>(),
+              nullable: false,
+            ),
+            'minutes': _i1.ParameterDescription(
+              name: 'minutes',
+              type: _i1.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _i1.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['meal'] as _i4.MealEndpoint)
+                  .generateMealSuggestions(
+                    session,
+                    params['tasks'],
+                    params['prefs'],
+                    params['minutes'],
+                  ),
+        ),
+      },
+    );
     connectors['plan'] = _i1.EndpointConnector(
       name: 'plan',
       endpoint: endpoints['plan']!,
@@ -267,7 +311,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['plan'] as _i4.PlanEndpoint).generatePlan(
+              ) async => (endpoints['plan'] as _i5.PlanEndpoint).generatePlan(
                 session,
                 params['rawTasks'],
               ),
@@ -291,7 +335,7 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['greeting'] as _i5.GreetingEndpoint).hello(
+              ) async => (endpoints['greeting'] as _i6.GreetingEndpoint).hello(
                 session,
                 params['name'],
               ),
@@ -309,13 +353,13 @@ class Endpoints extends _i1.EndpointDispatch {
               (
                 _i1.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['ping'] as _i6.PingEndpoint).ping(session),
+              ) async => (endpoints['ping'] as _i7.PingEndpoint).ping(session),
         ),
       },
     );
-    modules['serverpod_auth_idp'] = _i7.Endpoints()
+    modules['serverpod_auth_idp'] = _i8.Endpoints()
       ..initializeEndpoints(server);
-    modules['serverpod_auth_core'] = _i8.Endpoints()
+    modules['serverpod_auth_core'] = _i9.Endpoints()
       ..initializeEndpoints(server);
   }
 }

@@ -1,254 +1,256 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:http/http.dart' as http;
 import 'package:serverpod/serverpod.dart';
+import 'package:http/http.dart' as http;
 
 import '../generated/protocol.dart';
 
 class PlanEndpoint extends Endpoint {
   Future<PlanResponse> generatePlan(Session session, String rawTasks) async {
     final tasks = rawTasks.trim();
+
     if (tasks.isEmpty) {
-      return PlanResponse(
-        focusPlan: [],
-        chillPlan: [],
-        note: 'No tasks detected. Add tasks separated by commas.',
-      );
+      return PlanResponse(note: 'No tasks detected. Add tasks separated by commas.', plan: []);
     }
 
     final apiKey = Platform.environment['GEMINI_API_KEY'] ?? '';
     if (apiKey.isEmpty) {
-      return PlanResponse(
-        focusPlan: [],
-        chillPlan: [],
-        note: 'GEMINI_API_KEY not set. Set it in your system env and restart the server.',
+      return _fallbackPlan(tasks, note: 'AI key not set. Showing a local parsed plan.');
+    }
+
+    //gemini 2.5
+    final url = Uri.parse(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey',
+    );
+
+    final prompt = _buildPrompt(tasks);
+
+    // 1) attempt
+    final first = await _callGemini( session, url, prompt, temperature: 0.1, maxOutputTokens: 4096,);
+    if (first != null) return first;
+
+    // 2) retry ultra strict
+    final retryPrompt = 'Return ONLY JSON. No extra text.\n$prompt';
+    final second = await _callGemini(session, url, retryPrompt, temperature: 0.0, maxOutputTokens: 2048);
+    if (second != null) return second;
+
+    // 3) fallback
+    return _fallbackPlan(tasks, note: 'AI unavailable. Showing a local parsed plan.');
+  }
+
+String _buildPrompt(String tasks) {
+  return '''
+You are an intelligent daily planner.
+
+Goal:
+OPTIMIZE the day schedule, not just list tasks.
+
+Return ONLY valid minified JSON.
+
+Schema:
+{"note":"string","plan":[{"start":"HH:MM","end":"HH:MM","title":"string"}]}
+
+Planning rules:
+- You are an intelligent day planner.
+- Your job is to OPTIMIZE the schedule, not just place tasks.
+
+- Respect fixed times IF possible.
+- NEVER delete tasks.
+- NEVER remove activities due to conflicts.
+- If a conflict happens, SPLIT long tasks into multiple blocks.
+- Long tasks (2h+) MUST be divided across the day if needed.
+- All tasks MUST appear in the plan.
+- Distribute work around fixed events.
+- Fill gaps intelligently.
+- Create the most balanced day possible.
+
+DO NOT simply list tasks.
+You must ORGANIZE and OPTIMIZE the schedule.
+
+User input:
+"$tasks"
+''';
+}
+
+  Future<PlanResponse?> _callGemini(
+    Session session,
+    Uri url,
+    String prompt, {
+    required double temperature,
+    required int maxOutputTokens,
+  }) async {
+    final reqBody = {
+      "contents": [
+        {
+          "role": "user",
+          "parts": [
+            {"text": prompt}
+          ]
+        }
+      ],
+      "generationConfig": {
+        "temperature": temperature,
+        "maxOutputTokens": maxOutputTokens,
+        "responseMimeType": "application/json"
+      }
+    };
+
+    http.Response resp;
+    try {
+      resp = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(reqBody), // IMPORTANT
       );
+    } catch (e) {
+      session.log('PLAN HTTP error: $e');
+      return null;
+    }
+
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
+      session.log('PLAN Gemini HTTP ${resp.statusCode}: ${resp.body}');
+
+      // Quota exceeded -> fallback (so demo still works)
+      if (resp.statusCode == 429) return null;
+
+      // 404 model not found -> fallback
+      if (resp.statusCode == 404) return null;
+
+      return null;
+    }
+
+    Map<String, dynamic> decoded;
+    try {
+      decoded = jsonDecode(resp.body) as Map<String, dynamic>;
+    } catch (e) {
+      session.log('PLAN could not jsonDecode Gemini response body: $e');
+      return null;
+    }
+
+    final text = _extractCandidateText(decoded);
+    session.log('PLAN RAW TEXT:\n$text');
+
+    final jsonString = _extractBalancedJson(text) ?? _extractBalancedJson(resp.body);
+    if (jsonString == null) {
+      session.log('PLAN PARSE FAILED. BODY:\n${resp.body}');
+      return null;
     }
 
     try {
-      final url = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey',
-      );
+      final data = jsonDecode(jsonString) as Map<String, dynamic>;
 
-      final prompt = '''
-You are a scheduling assistant.
+      final note = (data['note'] ?? '').toString().trim();
+      final planRaw = (data['plan'] as List?) ?? const [];
 
-Given these tasks: "$tasks"
-
-Return ONLY valid JSON with this exact shape:
-{
-  "note": "string",
-  "focusPlan": [{"start":"HH:MM","end":"HH:MM","title":"string"}],
-  "chillPlan": [{"start":"HH:MM","end":"HH:MM","title":"string"}]
-}
-
-Rules:
-- Use 24h format HH:MM.
-- Provide 3-6 items in each list.
-- Times must be realistic and strictly increasing in each list.
-- Titles should reference the given tasks.
-''';
-
-      Map<String, dynamic> buildBody() => {
-            "contents": [
-              {
-                "role": "user",
-                "parts": [
-                  {"text": prompt}
-                ]
-              }
-            ],
-            "generationConfig": {
-              "temperature": 0.3,
-              "maxOutputTokens": 1200,
-              "responseMimeType": "application/json",
-              // Si el modelo/tu cuenta lo soporta, esto reduce muchísimo respuestas raras.
-              "responseSchema": {
-                "type": "OBJECT",
-                "properties": {
-                  "note": {"type": "STRING"},
-                  "focusPlan": {
-                    "type": "ARRAY",
-                    "items": {
-                      "type": "OBJECT",
-                      "properties": {
-                        "start": {"type": "STRING"},
-                        "end": {"type": "STRING"},
-                        "title": {"type": "STRING"}
-                      },
-                      "required": ["start", "end", "title"]
-                    }
-                  },
-                  "chillPlan": {
-                    "type": "ARRAY",
-                    "items": {
-                      "type": "OBJECT",
-                      "properties": {
-                        "start": {"type": "STRING"},
-                        "end": {"type": "STRING"},
-                        "title": {"type": "STRING"}
-                      },
-                      "required": ["start", "end", "title"]
-                    }
-                  }
-                },
-                "required": ["note", "focusPlan", "chillPlan"]
-              }
-            }
-          };
-
-      Future<Map<String, dynamic>> doRequest() async {
-        final resp = await http.post(
-          url,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(buildBody()),
-        );
-
-        if (resp.statusCode < 200 || resp.statusCode >= 300) {
-          session.log(
-            'Gemini error ${resp.statusCode}: ${resp.body}',
-            level: LogLevel.error,
-          );
-          throw Exception('Gemini HTTP ${resp.statusCode}');
-        }
-
-        // Temporary DEBUG
-        // session.log('RAW HTTP BODY:\n${resp.body}');
-
-        return jsonDecode(resp.body) as Map<String, dynamic>;
+      final items = <PlanItem>[];
+      for (final it in planRaw) {
+        if (it is! Map) continue;
+        final start = (it['start'] ?? '').toString().trim();
+        final end = (it['end'] ?? '').toString().trim();
+        final title = (it['title'] ?? '').toString().trim();
+        if (start.isEmpty || end.isEmpty || title.isEmpty) continue;
+        items.add(PlanItem(start: start, end: end, title: title));
       }
 
-      // 1) request + retry if it appear trucated
-      Map<String, dynamic> decoded = await doRequest();
-      String rawModelText = _extractModelText(decoded);
-      String cleaned = _stripCodeFences(rawModelText);
-
-      if (cleaned.isNotEmpty && _extractFirstJsonObject(cleaned) == null) {
-        session.log('Gemini looked truncated, retrying once...', level: LogLevel.warning);
-        decoded = await doRequest();
-        rawModelText = _extractModelText(decoded);
-        cleaned = _stripCodeFences(rawModelText);
+      // require at least 3 items to accept
+      if (items.length < 3) {
+        session.log('PLAN too few items from AI: ${items.length}');
+        return null;
       }
-
-      session.log('CLEANED:\n$cleaned');
-
-      // 2) decode JSON
-      dynamic planDecoded;
-      try {
-        planDecoded = jsonDecode(cleaned);
-      } catch (_) {
-        final extracted = _extractFirstJsonObject(cleaned);
-        if (extracted == null) {
-          session.log(
-            'Gemini response appears truncated or not JSON.\nRAW:\n$rawModelText',
-            level: LogLevel.error,
-          );
-          return PlanResponse(
-            focusPlan: [],
-            chillPlan: [],
-            note: 'Gemini returned a truncated response. Try again.',
-          );
-        }
-        session.log('EXTRACTED JSON:\n$extracted');
-        planDecoded = jsonDecode(extracted);
-      }
-
-      Map<String, dynamic> planJson;
-      if (planDecoded is List && planDecoded.isNotEmpty) {
-        planJson = (planDecoded.first as Map).cast<String, dynamic>();
-      } else if (planDecoded is Map) {
-        planJson = planDecoded.cast<String, dynamic>();
-      } else {
-        session.log(
-          'Unexpected JSON type: ${planDecoded.runtimeType}\n$planDecoded',
-          level: LogLevel.error,
-        );
-        return PlanResponse(
-          focusPlan: [],
-          chillPlan: [],
-          note: 'Gemini returned unexpected JSON format. Check server logs.',
-        );
-      }
-
-      final note = (planJson['note'] ?? 'Plan generated.').toString();
-      final focusPlan = _parseItems(planJson['focusPlan']);
-      final chillPlan = _parseItems(planJson['chillPlan']);
 
       return PlanResponse(
-        focusPlan: focusPlan,
-        chillPlan: chillPlan,
-        note: note,
+        note: note.isEmpty ? 'Tip: include times + durations for best results.' : note,
+        plan: items,
       );
-    } catch (e, st) {
-      session.log('Gemini exception: $e\n$st', level: LogLevel.error);
-      return PlanResponse(
-        focusPlan: [],
-        chillPlan: [],
-        note: 'Gemini exception: $e',
-      );
+    } catch (e) {
+      session.log('PLAN JSON parse error: $e');
+      return null;
     }
   }
 
-  // ---------------- Helpers ----------------
+  String _extractCandidateText(Map<String, dynamic> decoded) {
+    try {
+      final candidates = decoded['candidates'] as List?;
+      if (candidates == null || candidates.isEmpty) return '';
+      final content = candidates[0]['content'];
+      final parts = content['parts'] as List?;
+      if (parts == null || parts.isEmpty) return '';
+      return (parts[0]['text'] ?? '').toString();
+    } catch (_) {
+      return '';
+    }
+  }
 
-  static String _extractModelText(Map<String, dynamic> decoded) {
-    final candidates = decoded['candidates'];
-    if (candidates is List && candidates.isNotEmpty) {
-      final first = candidates.first;
-      if (first is Map) {
-        final content = first['content'];
-        if (content is Map) {
-          final parts = content['parts'];
-          if (parts is List && parts.isNotEmpty) {
-            final p0 = parts.first;
-            if (p0 is Map && p0['text'] != null) {
-              return p0['text'].toString();
-            }
-          }
-        }
+  // Extract first balanced {...} JSON block from any text
+  String? _extractBalancedJson(String s) {
+    final fenceStart = s.indexOf('```');
+    if (fenceStart != -1) {
+      final fenceEnd = s.indexOf('```', fenceStart + 3);
+      if (fenceEnd != -1) {
+        final inside = s.substring(fenceStart + 3, fenceEnd).trim();
+        final cleaned = inside.startsWith('json') ? inside.substring(4).trim() : inside;
+        final extracted = _extractBalancedJson(cleaned);
+        if (extracted != null) return extracted;
       }
     }
-    return '';
-  }
 
-  static String _stripCodeFences(String s) {
-    var cleaned = s.trim();
-    cleaned = cleaned
-        .replaceAll(RegExp(r'```(?:json)?', caseSensitive: false), '')
-        .replaceAll('```', '')
-        .trim();
-    return cleaned;
-  }
-
-  static String? _extractFirstJsonObject(String s) {
     final start = s.indexOf('{');
     if (start == -1) return null;
 
-    var depth = 0;
-    for (var i = start; i < s.length; i++) {
-      final ch = s[i];
-      if (ch == '{') depth++;
-      if (ch == '}') depth--;
-      if (depth == 0) {
-        return s.substring(start, i + 1);
-      }
+    int depth = 0;
+    for (int i = start; i < s.length; i++) {
+      final c = s[i];
+      if (c == '{') depth++;
+      if (c == '}') depth--;
+      if (depth == 0) return s.substring(start, i + 1).trim();
     }
     return null;
   }
 
-  static List<PlanItem> _parseItems(dynamic list) {
-    if (list is! List) return [];
-    return list.map((e) {
-      if (e is! Map) {
-        return PlanItem(start: '', end: '', title: e.toString());
+  PlanResponse _fallbackPlan(String tasks, {String? note}) {
+    // Very simple parser: split by commas, add 45-min blocks from 09:00
+    final parts = tasks
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    int startMin = 9 * 60;
+    String fmt(int m) => '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+
+    final plan = <PlanItem>[];
+
+    // Try to respect “HH:MM” inside items, otherwise stack them
+    final timeRegex = RegExp(r'\b([01]?\d|2[0-3]):([0-5]\d)\b');
+    final durRegex = RegExp(r'\b(\d{1,3})\s*min\b', caseSensitive: false);
+
+    for (final p in parts) {
+      final tm = timeRegex.firstMatch(p);
+      final dm = durRegex.firstMatch(p);
+
+      final dur = dm != null ? int.parse(dm.group(1)!) : 45;
+
+      if (tm != null) {
+        final hh = int.parse(tm.group(1)!);
+        final mm = int.parse(tm.group(2)!);
+        startMin = hh * 60 + mm;
       }
-      final m = e.cast<String, dynamic>();
-      return PlanItem(
-        start: (m['start'] ?? '').toString(),
-        end: (m['end'] ?? '').toString(),
-        title: (m['title'] ?? '').toString(),
-      );
-    }).toList();
+
+      final end = startMin + dur;
+      plan.add(PlanItem(start: fmt(startMin), end: fmt(end), title: p.replaceAll(timeRegex, '').trim()));
+      startMin = end + 10; // small buffer
+      if (plan.length >= 10) break;
+    }
+
+    if (plan.isEmpty) {
+      plan.add(PlanItem(start: '09:00', end: '09:30', title: 'Plan setup + priorities'));
+      plan.add(PlanItem(start: '09:40', end: '10:20', title: tasks));
+    }
+
+    return PlanResponse(
+      note: note ?? 'Fallback plan (AI unavailable). Use times like "Gym 09:00 60min" for best results.',
+      plan: plan,
+    );
   }
 }

@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+  url_launcher: ^6.3.0
   serverpod_flutter: ^3.1.1
   daypilot_backend_client:
     path: ../daypilot_backend/daypilot_backend_client
